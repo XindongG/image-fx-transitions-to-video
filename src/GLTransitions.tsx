@@ -1,39 +1,42 @@
-import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
-import effects from './Effect';
+import React, {useCallback, useEffect, useState} from 'react';
 import {delayRender, useCurrentFrame, useVideoConfig} from 'remotion';
+import {BaseTransition} from './Transition/BaseTransition';
 import {useMount} from 'ahooks';
-import image1 from './1.jpg';
-const GLTransitions: React.FC<{
+const canvas = React.createRef<HTMLCanvasElement>();
+
+export const GLTransitions: React.FC<{
 	name: string;
 }> = ({name}) => {
 	const [handle] = useState(() => delayRender());
-	const {fps, width, height} = useVideoConfig();
 	const frame = useCurrentFrame();
-	const canvasRef = useRef<HTMLCanvasElement>(null);
-	const [shader, setShader] = useState<any>(null);
-
-	const Effect = useMemo(() => {
-		return effects.find((item) => item.name === name)!.effect;
-	}, [effects]);
-
-	// 初始化渲染
-	const init = useCallback(async () => {
-		const gl = canvasRef?.current!.getContext('webgl');
-		const result = new Effect({
+	const {fps, width, height} = useVideoConfig();
+	const [transitionEvent, setTransitionEvent] = useState<any>(null);
+	const initialize = useCallback(async () => {
+		const gl =
+			(canvas.current as HTMLCanvasElement).getContext('webgl') ||
+			((canvas.current as HTMLCanvasElement).getContext(
+				'experimental-webgl',
+			) as WebGLRenderingContext);
+		const result = new BaseTransition({
 			gl: gl as WebGLRenderingContext,
+			width,
+			height,
 			fps,
-			imageUrl: image1,
+			transitionName: name,
 		});
-		setShader(result);
-		await result!.init();
-	}, [fps, handle, height, width]);
-	useMount(async () => {
-		await init();
-	});
-	useEffect(() => {
-		shader?.render(frame);
-	}, [shader, fps, frame]);
-	return <canvas ref={canvasRef} width={width} height={height} />;
-};
+		await result.init();
+		setTransitionEvent(result);
+	}, [fps, handle, height, name, width]);
 
-export default GLTransitions;
+	useMount(async () => {
+		await initialize();
+	});
+
+	useEffect(() => {
+		if (transitionEvent?.drawFn) {
+			transitionEvent.drawFn(frame);
+		}
+	}, [fps, frame, transitionEvent]);
+
+	return <canvas ref={canvas} width={width} height={height} />;
+};

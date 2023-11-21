@@ -77,9 +77,22 @@ export abstract class BaseEffect {
 	setDrawFn(render: (time: number) => void) {
 		this.drawFn = render;
 	}
-	render(time: number) {
-		this.delayRenderHandel = delayRender();
+	postDrawCleanUp() {
 		const gl = this.gl;
+		gl.disableVertexAttribArray(this.positionAttribLocation!);
+		gl.disableVertexAttribArray(this.texCordAttribLocation!);
+		gl.bindTexture(gl.TEXTURE_2D, null);
+		gl.useProgram(null); // 可能还需要禁用当前的着色器程序
+		gl.bindBuffer(gl.ARRAY_BUFFER, null);
+		gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null);
+		gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+	}
+
+	render(time: number) {
+		const gl = this.gl;
+		this.delayRenderHandel = delayRender();
+		this.postDrawCleanUp();
+		gl.viewport(0, 0, this.width, this.height);
 		const timeUniformLocation = gl.getUniformLocation(
 			this.shaderProgram!,
 			'Time',
@@ -89,13 +102,14 @@ export abstract class BaseEffect {
 			return;
 		}
 		this.applyEffect();
-		this.applyVertexAttribute();
 		const timeInSeconds = time / this.fps; // 将帧索引转换为时间（秒）
-		continueRender(this.delayRenderHandel!);
 		gl.uniform1f(timeUniformLocation, timeInSeconds);
+		continueRender(this.delayRenderHandel!);
 		gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+		this.postDrawCleanUp();
 	}
 	async init() {
+		this.postDrawCleanUp();
 		const gl = this.gl;
 		const texture = new Texture({
 			gl: gl as WebGLRenderingContext,
@@ -134,6 +148,7 @@ export abstract class BaseEffect {
 		gl.attachShader(this.shaderProgram, this.vertexShader);
 		gl.attachShader(this.shaderProgram, this.fragmentShader);
 		gl.linkProgram(this.shaderProgram);
+		gl.viewport(0, 0, this.width, this.height);
 		if (!gl.getProgramParameter(this.shaderProgram, gl.LINK_STATUS)) {
 			console.error(
 				'Unable to initialize the shader program:',
@@ -184,11 +199,6 @@ export abstract class BaseEffect {
 		gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
 		this.setDrawFn(this.render);
 		this.inited = true;
-	}
-	postDrawCleanUp() {
-		this.gl.disableVertexAttribArray(this.positionAttribLocation!);
-		this.gl.disableVertexAttribArray(this.texCordAttribLocation!);
-		this.gl.bindTexture(this.gl.TEXTURE_2D, null);
 	}
 
 	private applyBuffer() {

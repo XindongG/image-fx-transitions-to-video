@@ -23,6 +23,7 @@ export const RemotionVideo: React.FC = () => {
 				height={HEIGHT}
 				defaultProps={{
 					name: 'BowTieHorizontal',
+					durationInFramesTotal: 4 * 18 + 36 + 4 * 18,
 				}}
 			/>
 			{effects.map((item: {name: any}, index: any) => {

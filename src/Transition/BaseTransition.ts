@@ -2,6 +2,7 @@ import {continueRender, delayRender} from 'remotion';
 import createTransition from 'gl-transition';
 import transitions from 'gl-transitions';
 import {Texture} from '../Texture';
+import {FPS} from '../constants';
 
 export class BaseTransition {
 	protected readonly gl: WebGLRenderingContext; //gl实例
@@ -19,7 +20,9 @@ export class BaseTransition {
 	private shaderProgram?: WebGLProgram;
 	protected positionAttribLocation?: number;
 	public inited = false;
-	public drawFn: ((frame: number) => void) | null = null; //绘制函数
+	public drawFn:
+		| ((frame: number, effectDurationInFrames: number) => void)
+		| undefined; //绘制函数
 	constructor(params: {
 		gl: WebGLRenderingContext;
 		fps: number;
@@ -57,6 +60,17 @@ export class BaseTransition {
 			0,
 		);
 	}
+	postDrawCleanUp() {
+		const gl = this.gl;
+		gl.disableVertexAttribArray(this.positionAttribLocation!);
+		gl.disableVertexAttribArray(0);
+		gl.bindTexture(gl.TEXTURE_2D, null);
+		gl.useProgram(null); // 可能还需要禁用当前的着色器程序
+		gl.bindBuffer(gl.ARRAY_BUFFER, null);
+		gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null);
+		gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+	}
+
 	async init() {
 		const gl = this.gl;
 		const texture = new Texture({
@@ -84,15 +98,19 @@ export class BaseTransition {
 			gl,
 			transitions.find((t: {name: string}) => t.name === this.transitionName),
 		);
-		this.drawFn = (frame: number) => {
+		this.drawFn = (frame: number, effectDurationInFrames: number) => {
+			const progress = (frame - effectDurationInFrames) / FPS;
 			this.delayRenderHandel = delayRender();
+			this.postDrawCleanUp();
+			gl.viewport(0, 0, this.width, this.height);
+			gl.useProgram(this.shaderProgram!);
 			this.applyBuffer();
 			this.applyVertexAttribute();
 			continueRender(this.delayRenderHandel);
 
 			if (this.textureFrom && this.textureTo) {
 				this.transition?.draw(
-					(frame / this.fps) % 1,
+					progress,
 					this.textureFrom,
 					this.textureTo,
 					this.width,
@@ -103,6 +121,7 @@ export class BaseTransition {
 					},
 				);
 			}
+			this.postDrawCleanUp();
 		};
 		this.inited = true;
 	}

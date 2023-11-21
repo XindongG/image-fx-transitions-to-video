@@ -17,14 +17,13 @@ export class Texture {
 	}
 
 	async loadTexture(imageUrl: string): Promise<WebGLTexture> {
-		console.log(imageUrl, 'imageUrl');
-		// if (this.textures.has(imageUrl)) {
-		// 	return this.textures.get(imageUrl)!;
-		// }
+		if (this.textures.has(imageUrl)) {
+			return this.textures.get(imageUrl)!;
+		}
 
 		const image = await this.loadImage(imageUrl);
 		const texture = this.createTexture(image);
-		// this.textures.set(imageUrl, texture);
+		this.textures.set(imageUrl, texture);
 		return texture;
 	}
 

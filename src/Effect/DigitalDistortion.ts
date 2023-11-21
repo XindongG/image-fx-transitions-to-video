@@ -6,6 +6,7 @@
 import {BaseEffect} from './BaseEffect';
 
 export class DigitalDistortion extends BaseEffect {
+	public duration: number = 0.3;
 	// 片段着色器
 	protected getFragmentShaderSource(): string {
 		return `

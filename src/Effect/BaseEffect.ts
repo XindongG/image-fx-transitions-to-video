@@ -1,12 +1,22 @@
 import {continueRender, delayRender} from 'remotion';
+import {Texture} from '../Texture';
 
 export abstract class BaseEffect {
 	protected readonly gl: WebGLRenderingContext; //gl实例
 	protected readonly fps; //帧率
-	protected readonly delayRenderHandel; //延迟渲染句柄
-	protected texture: WebGLTexture | null = null;
-	protected imageUrl: string | null = null;
+	protected readonly width: number; // 宽度
+	protected readonly height: number; // 宽度
+	protected delayRenderHandel: number | undefined; //延迟渲染句柄
+	protected texture: WebGLTexture | undefined;
+	private image: string | undefined;
+	protected vertexBuffer: WebGLBuffer | null = null;
+	protected vertices: number[] = [];
+	protected positionAttribLocation: number | null = null;
+	protected texCordAttribLocation: number | null = null;
+	protected u_imageLocation: WebGLUniformLocation | null = null;
 	protected shaderProgram: WebGLProgram | null = null;
+	protected vertexShader: WebGLShader | null = null;
+	protected fragmentShader: WebGLShader | null = null;
 	public inited = false;
 	//顶点着色器
 	protected getVertexShaderSource(): string {
@@ -27,24 +37,16 @@ export abstract class BaseEffect {
 	constructor(params: {
 		gl: WebGLRenderingContext;
 		fps: number;
-		texture?: WebGLTexture;
-		imageUrl?: string;
+		image: string;
+		width: number;
+		height: number;
 	}) {
-		const {gl, fps, texture, imageUrl} = params;
+		const {gl, fps, width, height, image} = params;
 		this.gl = gl;
 		this.fps = fps;
-		this.texture = texture || null;
-		this.imageUrl = imageUrl || null;
-		this.delayRenderHandel = delayRender();
-	}
-
-	async loadImage(src: string) {
-		return new Promise((resolve, reject) => {
-			const img = new Image();
-			img.onload = () => resolve(img);
-			img.onerror = reject;
-			img.src = src;
-		});
+		this.width = width;
+		this.height = height;
+		this.image = image;
 	}
 
 	loadShader(
@@ -57,7 +59,6 @@ export abstract class BaseEffect {
 			console.error('Error creating shader.');
 			return null;
 		}
-
 		gl.shaderSource(shader, source);
 		gl.compileShader(shader);
 
@@ -77,6 +78,7 @@ export abstract class BaseEffect {
 		this.drawFn = render;
 	}
 	render(time: number) {
+		this.delayRenderHandel = delayRender();
 		const gl = this.gl;
 		const timeUniformLocation = gl.getUniformLocation(
 			this.shaderProgram!,
@@ -86,185 +88,149 @@ export abstract class BaseEffect {
 			console.error('Shader program is not initialized.');
 			return;
 		}
-
-		// 使用正确的着色器程序
-
-		gl.useProgram(this.shaderProgram);
+		this.applyEffect();
+		this.applyVertexAttribute();
 		const timeInSeconds = time / this.fps; // 将帧索引转换为时间（秒）
+		continueRender(this.delayRenderHandel!);
 		gl.uniform1f(timeUniformLocation, timeInSeconds);
-		gl.clear(gl.COLOR_BUFFER_BIT);
 		gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
 	}
-	loadImageAsTexture = async (gl: WebGLRenderingContext, src: string) => {
-		const image = await this.loadImage(src);
-		const texture = gl.createTexture();
-		gl.bindTexture(gl.TEXTURE_2D, texture);
-		gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
-		gl.texImage2D(
-			gl.TEXTURE_2D,
-			0,
-			gl.RGBA,
-			gl.RGBA,
-			gl.UNSIGNED_BYTE,
-			image as
-				| ImageBitmap
-				| ImageData
-				| HTMLImageElement
-				| HTMLCanvasElement
-				| HTMLVideoElement
-				| OffscreenCanvas,
-		);
-		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-		return texture;
-	};
 	async init() {
 		const gl = this.gl;
-
-		try {
-			if (!gl) {
-				console.error('Unable to initialize WebGL.');
-				return;
-			}
-			// 加载图片作为纹理
-			if (this.imageUrl && !this.texture) {
-				// 如果提供了 imageUrl，则加载纹理
-				this.texture = await this.loadImageAsTexture(gl, this.imageUrl);
-			}
-
-			if (!this.texture) {
-				console.error('No texture or image URL provided.');
-				return;
-			}
-
-			// 创建和编译着色器
-			const vertexShader = this.loadShader(
-				gl,
-				gl.VERTEX_SHADER,
-				this.getVertexShaderSource(),
-			) as WebGLShader;
-			const fragmentShader = this.loadShader(
-				gl,
-				gl.FRAGMENT_SHADER,
-				this.getFragmentShaderSource(),
-			) as WebGLShader;
-			if (!fragmentShader) {
-				console.error('Shader failed to compile.');
-				return;
-			}
-
-			// 创建和链接程序
-			this.shaderProgram = gl.createProgram() as WebGLProgram;
-			gl.attachShader(this.shaderProgram, vertexShader);
-			gl.attachShader(this.shaderProgram, fragmentShader);
-			gl.linkProgram(this.shaderProgram);
-			if (!gl.getProgramParameter(this.shaderProgram, gl.LINK_STATUS)) {
-				console.error(
-					'Unable to initialize the shader program:',
-					gl.getProgramInfoLog(this.shaderProgram),
-				);
-				return;
-			}
-			gl.useProgram(this.shaderProgram);
-
-			// 定义顶点数据
-			const vertices = [
-				-1.0, -1.0, 0.0, 0.0, 1.0, -1.0, 1.0, 0.0, -1.0, 1.0, 0.0, 1.0, 1.0,
-				1.0, 1.0, 1.0,
-			];
-
-			// 创建顶点缓冲
-			const vertexBuffer = gl.createBuffer();
-			gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
-			gl.bufferData(
-				gl.ARRAY_BUFFER,
-				new Float32Array(vertices),
-				gl.STATIC_DRAW,
-			);
-
-			// 连接顶点着色器的属性
-			const positionAttribLocation = gl.getAttribLocation(
-				this.shaderProgram,
-				'Position',
-			);
-			gl.enableVertexAttribArray(positionAttribLocation);
-			gl.vertexAttribPointer(
-				positionAttribLocation,
-				2, // 每个顶点的元素数量
-				gl.FLOAT,
-				false,
-				4 * Float32Array.BYTES_PER_ELEMENT, // 每个顶点的总大小
-				0, // 偏移量
-			);
-
-			const texCoordAttribLocation = gl.getAttribLocation(
-				this.shaderProgram,
-				'TextureCoords',
-			);
-			gl.enableVertexAttribArray(texCoordAttribLocation);
-			gl.vertexAttribPointer(
-				texCoordAttribLocation,
-				2, // 纹理坐标的元素数量
-				gl.FLOAT,
-				false,
-				4 * Float32Array.BYTES_PER_ELEMENT, // 每个顶点的总大小
-				2 * Float32Array.BYTES_PER_ELEMENT, // 偏移量
-			);
-
-			// 设置纹理
-			const u_imageLocation = gl.getUniformLocation(
-				this.shaderProgram,
-				'u_image',
-			);
-			gl.activeTexture(gl.TEXTURE0);
-			gl.bindTexture(gl.TEXTURE_2D, this.texture);
-			gl.uniform1i(u_imageLocation, 0);
-
-			// 绘制场景
-			gl.clearColor(0, 0, 0, 1);
-			gl.clear(gl.COLOR_BUFFER_BIT);
-			gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
-
-			this.setDrawFn(this.render);
-		} finally {
-			this.inited = true;
-			continueRender(this.delayRenderHandel);
-		}
-	}
-	deleteProgram() {
-		this.gl.useProgram(null);
-	}
-	applyEffect(texture: WebGLTexture, frame: number): void {
-		const gl = this.gl;
-
-		if (!this.shaderProgram) {
-			console.error('Shader program is not initialized.');
+		const texture = new Texture({
+			gl: gl as WebGLRenderingContext,
+			width: this.width,
+			height: this.height,
+		});
+		this.texture = await texture.loadTexture(this.image!);
+		if (!gl) {
+			console.error('Unable to initialize WebGL.');
 			return;
 		}
 
-		// 使用着色器程序
-		gl.useProgram(this.shaderProgram);
+		if (!this.texture) {
+			console.error('No texture or image URL provided.');
+			return;
+		}
 
-		// 激活并绑定纹理
+		// 创建和编译着色器
+		this.vertexShader = this.loadShader(
+			gl,
+			gl.VERTEX_SHADER,
+			this.getVertexShaderSource(),
+		) as WebGLShader;
+		this.fragmentShader = this.loadShader(
+			gl,
+			gl.FRAGMENT_SHADER,
+			this.getFragmentShaderSource(),
+		) as WebGLShader;
+		if (!this.fragmentShader) {
+			console.error('Shader failed to compile.');
+			return;
+		}
+
+		// 创建和链接程序
+		this.shaderProgram = gl.createProgram() as WebGLProgram;
+		gl.attachShader(this.shaderProgram, this.vertexShader);
+		gl.attachShader(this.shaderProgram, this.fragmentShader);
+		gl.linkProgram(this.shaderProgram);
+		if (!gl.getProgramParameter(this.shaderProgram, gl.LINK_STATUS)) {
+			console.error(
+				'Unable to initialize the shader program:',
+				gl.getProgramInfoLog(this.shaderProgram),
+			);
+			return;
+		}
+
+		// 定义顶点数据
+		this.vertices = [
+			-1.0, -1.0, 0.0, 0.0, 1.0, -1.0, 1.0, 0.0, -1.0, 1.0, 0.0, 1.0, 1.0, 1.0,
+			1.0, 1.0,
+		];
+
+		// 创建顶点缓冲
+		this.vertexBuffer = gl.createBuffer();
+		this.applyBuffer();
+
+		// 连接顶点着色器的属性
+		this.positionAttribLocation = gl.getAttribLocation(
+			this.shaderProgram,
+			'Position',
+		);
+		this.applyVertexAttribute();
+
+		this.texCordAttribLocation = gl.getAttribLocation(
+			this.shaderProgram,
+			'TextureCoords',
+		);
+		gl.enableVertexAttribArray(this.texCordAttribLocation);
+		gl.vertexAttribPointer(
+			this.texCordAttribLocation,
+			2, // 纹理坐标的元素数量
+			gl.FLOAT,
+			false,
+			4 * Float32Array.BYTES_PER_ELEMENT, // 每个顶点的总大小
+			2 * Float32Array.BYTES_PER_ELEMENT, // 偏移量
+		);
+
+		// 设置纹理
+		this.u_imageLocation = gl.getUniformLocation(this.shaderProgram, 'u_image');
 		gl.activeTexture(gl.TEXTURE0);
-		gl.bindTexture(gl.TEXTURE_2D, texture);
-		gl.uniform1i(gl.getUniformLocation(this.shaderProgram, 'u_image'), 0);
-
-		// 设置时间uniform
-		const timeLocation = gl.getUniformLocation(this.shaderProgram, 'Time');
-		gl.uniform1f(timeLocation, frame / this.fps);
+		gl.uniform1i(this.u_imageLocation, 0);
 
 		// 绘制场景
-		gl.clearColor(0, 0, 0, 0); // 清除画布
+		gl.clearColor(0, 0, 0, 1);
 		gl.clear(gl.COLOR_BUFFER_BIT);
-
-		// 绘制四边形
 		gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+		this.setDrawFn(this.render);
+		this.inited = true;
+	}
+	postDrawCleanUp() {
+		this.gl.disableVertexAttribArray(this.positionAttribLocation!);
+		this.gl.disableVertexAttribArray(this.texCordAttribLocation!);
+		this.gl.bindTexture(this.gl.TEXTURE_2D, null);
+	}
 
-		// 解绑纹理和着色器程序
-		gl.bindTexture(gl.TEXTURE_2D, null);
-		gl.useProgram(null);
+	private applyBuffer() {
+		const gl = this.gl;
+		gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexBuffer);
+		gl.bufferData(
+			gl.ARRAY_BUFFER,
+			new Float32Array(this.vertices),
+			gl.STATIC_DRAW,
+		);
+	}
+	private applyVertexAttribute() {
+		const gl = this.gl;
+		gl.enableVertexAttribArray(this.positionAttribLocation!);
+		gl.vertexAttribPointer(
+			this.positionAttribLocation!,
+			2, // 每个顶点的元素数量
+			gl.FLOAT,
+			false,
+			4 * Float32Array.BYTES_PER_ELEMENT, // 每个顶点的总大小
+			0, // 偏移量
+		);
+		gl.enableVertexAttribArray(this.texCordAttribLocation!);
+		gl.vertexAttribPointer(
+			this.texCordAttribLocation!,
+			2, // 纹理坐标的元素数量
+			gl.FLOAT,
+			false,
+			4 * Float32Array.BYTES_PER_ELEMENT, // 每个顶点的总大小
+			2 * Float32Array.BYTES_PER_ELEMENT, // 偏移量
+		);
+		gl.activeTexture(gl.TEXTURE0);
+		gl.uniform1i(this.u_imageLocation, 0);
+	}
+	applyEffect(): void {
+		const gl = this.gl;
+		// 使用正确的着色器程序
+		gl.useProgram(this.shaderProgram);
+		if (this.texture) {
+			gl.bindTexture(gl.TEXTURE_2D, this.texture!.handle);
+		}
+		this.applyBuffer();
+		this.applyVertexAttribute();
 	}
 }

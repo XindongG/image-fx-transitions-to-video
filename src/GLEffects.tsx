@@ -1,12 +1,12 @@
 import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import effects from './Effect';
-import {delayRender, useCurrentFrame, useVideoConfig} from 'remotion';
+import {useCurrentFrame, useVideoConfig} from 'remotion';
 import {useMount} from 'ahooks';
-import image1 from './1.jpg';
+import image1 from './textImage/1.png';
+import {Texture} from './Texture';
 const GLEffects: React.FC<{
 	name: string;
 }> = ({name}) => {
-	const [handle] = useState(() => delayRender());
 	const {fps, width, height} = useVideoConfig();
 	const frame = useCurrentFrame();
 	const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -19,14 +19,21 @@ const GLEffects: React.FC<{
 	// 初始化渲染
 	const init = useCallback(async () => {
 		const gl = canvasRef?.current!.getContext('webgl');
+		const texture = new Texture({
+			gl: gl as WebGLRenderingContext,
+			width,
+			height,
+		});
 		const result = new Effect({
 			gl: gl as WebGLRenderingContext,
 			fps,
-			imageUrl: image1,
+			width,
+			height,
+			image: image1,
 		});
 		setShader(result);
 		await result!.init();
-	}, [fps, handle, height, width]);
+	}, [fps, height, width]);
 	useMount(async () => {
 		await init();
 	});

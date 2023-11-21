@@ -17,25 +17,26 @@ export const RemotionVideo: React.FC = () => {
 			<Composition
 				id="GLTransitionsAndEffect"
 				component={GLTransitionsAndEffect}
-				durationInFrames={2 * 60}
-				fps={30}
-				width={1920}
-				height={1080}
+				durationInFrames={4 * 18 + 36 + 4 * 18}
+				fps={FPS}
+				width={WIDTH}
+				height={HEIGHT}
 				defaultProps={{
-					name: 'Directional',
+					name: 'BowTieHorizontal',
 				}}
 			/>
 			{effects.map((item: {name: any}, index: any) => {
 				return (
 					<Composition
+						key={item.name}
 						id={`GLEffects-${
 							item.name.charAt(0).toUpperCase() + item.name.slice(1)
 						}`}
 						component={GLEffects}
-						durationInFrames={60 * 3}
-						fps={30}
-						width={1920}
-						height={1080}
+						durationInFrames={DURATION_IN_FRAMES}
+						fps={FPS}
+						width={WIDTH}
+						height={HEIGHT}
 						defaultProps={{
 							name: item.name,
 						}}

@@ -6,6 +6,7 @@
 import {BaseEffect} from './BaseEffect';
 
 export class SoulOut extends BaseEffect {
+	public duration: number = 0.7;
 	protected getFragmentShaderSource(): string {
 		return `
 			precision highp float;

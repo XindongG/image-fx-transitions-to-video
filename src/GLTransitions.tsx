@@ -1,13 +1,15 @@
 import React, {useCallback, useEffect, useState} from 'react';
-import {delayRender, useCurrentFrame, useVideoConfig} from 'remotion';
+import {useCurrentFrame, useVideoConfig} from 'remotion';
 import {BaseTransition} from './Transition/BaseTransition';
 import {useMount} from 'ahooks';
+import image1 from './textImage/1.png';
+import image2 from './textImage/2.png';
+
 const canvas = React.createRef<HTMLCanvasElement>();
 
 export const GLTransitions: React.FC<{
 	name: string;
 }> = ({name}) => {
-	const [handle] = useState(() => delayRender());
 	const frame = useCurrentFrame();
 	const {fps, width, height} = useVideoConfig();
 	const [transitionEvent, setTransitionEvent] = useState<any>(null);
@@ -23,10 +25,11 @@ export const GLTransitions: React.FC<{
 			height,
 			fps,
 			transitionName: name,
+			images: [image1, image2],
 		});
 		await result.init();
 		setTransitionEvent(result);
-	}, [fps, handle, height, name, width]);
+	}, [fps, height, name, width]);
 
 	useMount(async () => {
 		await initialize();

@@ -6,6 +6,7 @@
 import {BaseEffect} from './BaseEffect';
 
 export class Zoom extends BaseEffect {
+	public duration: number = 0.6;
 	protected getVertexShaderSource(): string {
 		return `
 			//顶点坐标/纹理坐标映射关系.放大?

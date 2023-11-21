@@ -6,6 +6,7 @@
 import {BaseEffect} from './BaseEffect';
 
 export class FlashWhite extends BaseEffect {
+	public duration: number = 0.6;
 	protected getFragmentShaderSource(): string {
 		return `
 			precision highp float;

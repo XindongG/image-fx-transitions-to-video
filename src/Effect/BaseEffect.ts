@@ -241,12 +241,6 @@ export abstract class BaseEffect {
 			1.0,
 		];
 
-		// // 定义顶点数据
-		// this.vertices = [
-		// 	-1.0, -1.0, 0.0, 0.0, 1.0, -1.0, 1.0, 0.0, -1.0, 1.0, 0.0, 1.0, 1.0, 1.0,
-		// 	1.0, 1.0,
-		// ];
-
 		// 创建顶点缓冲
 		this.vertexBuffer = gl.createBuffer();
 		this.applyBuffer();

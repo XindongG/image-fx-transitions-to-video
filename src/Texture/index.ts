@@ -70,6 +70,42 @@ export class Texture {
 		texture.magFilter = gl.LINEAR;
 		return texture;
 	}
+	calculateVertices(
+		textureWidth: number,
+		textureHeight: number,
+		viewportWidth: number,
+		viewportHeight: number,
+	) {
+		// 纹理的宽高比
+		const textureAspectRatio = textureWidth / textureHeight;
+		// 视口的宽高比
+		const viewportAspectRatio = viewportWidth / viewportHeight;
+
+		let scaleX, scaleY;
+
+		// 确保宽度撑满，高度根据纹理比例调整
+		if (textureAspectRatio > viewportAspectRatio) {
+			// 图像比视口宽
+			scaleX = 1;
+			scaleY = viewportAspectRatio / textureAspectRatio;
+		} else {
+			// 图像比视口窄
+			scaleX = textureAspectRatio / viewportAspectRatio;
+			scaleY = 1;
+		}
+
+		// 返回顶点坐标
+		return [
+			-scaleX,
+			-scaleY, // 左下角
+			scaleX,
+			-scaleY, // 右下角
+			-scaleX,
+			scaleY, // 左上角
+			scaleX,
+			scaleY, // 右上角
+		];
+	}
 	clearTextures() {
 		for (const texture of this.textures.values()) {
 			this.gl.deleteTexture(texture);

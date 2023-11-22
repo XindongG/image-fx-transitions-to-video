@@ -126,6 +126,7 @@ export const GLTransitionsAndEffect = () => {
 				frame >= currentFrameCounter &&
 				frame < currentFrameCounter + transitionDuration
 			) {
+				console.log('transition：', transitionsEvents[i]);
 				transitionsEvents[i]?.drawFn!(
 					frame - currentFrameCounter,
 					effectDuration,

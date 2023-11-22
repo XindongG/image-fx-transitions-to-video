@@ -43,6 +43,7 @@ export class BaseTransition {
 	}
 	private applyBuffer() {
 		const gl = this.gl;
+
 		gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexBuffer!);
 		gl.bufferData(
 			gl.ARRAY_BUFFER,
@@ -86,6 +87,7 @@ export class BaseTransition {
 		gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
 
 		this.vertices = [-1, -1, -1, 4, 4, -1];
+
 		this.vertexBuffer = gl.createBuffer();
 		this.applyBuffer();
 		this.applyVertexAttribute();
@@ -104,13 +106,6 @@ export class BaseTransition {
 			let progress = Math.abs(
 				relativeFrame / transitionDuration -
 					effectDurationInFrames / transitionDuration,
-			);
-			console.log(
-				frame,
-				effectDurationInFrames,
-				transitionDuration,
-				progress,
-				'======',
 			);
 			this.delayRenderHandel = delayRender();
 			this.postDrawCleanUp();

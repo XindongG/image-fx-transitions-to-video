@@ -7,8 +7,10 @@ export abstract class BaseEffect {
 	protected readonly width: number; // 宽度
 	protected readonly height: number; // 宽度
 	protected delayRenderHandel: number | undefined; //延迟渲染句柄
-	protected texture: WebGLTexture | undefined;
-	private image: string | undefined;
+	private texture:
+		| (WebGLTexture & {handle?: any; width?: number; height?: number})
+		| undefined;
+	private readonly image: string | undefined;
 	protected vertexBuffer: WebGLBuffer | null = null;
 	protected vertices: number[] = [];
 	protected positionAttribLocation: number | null = null;
@@ -82,15 +84,59 @@ export abstract class BaseEffect {
 		gl.disableVertexAttribArray(this.positionAttribLocation!);
 		gl.disableVertexAttribArray(this.texCordAttribLocation!);
 		gl.bindTexture(gl.TEXTURE_2D, null);
-		gl.useProgram(null); // 可能还需要禁用当前的着色器程序
+		gl.useProgram(null);
 		gl.bindBuffer(gl.ARRAY_BUFFER, null);
 		gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null);
 		gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 	}
+	private applyBuffer() {
+		const gl = this.gl;
+		gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexBuffer);
+		gl.bufferData(
+			gl.ARRAY_BUFFER,
+			new Float32Array(this.vertices),
+			gl.STATIC_DRAW,
+		);
+	}
+	private applyVertexAttribute() {
+		const gl = this.gl;
+		gl.enableVertexAttribArray(this.positionAttribLocation!);
+		gl.vertexAttribPointer(
+			this.positionAttribLocation!,
+			2, // 每个顶点的元素数量
+			gl.FLOAT,
+			false,
+			4 * Float32Array.BYTES_PER_ELEMENT, // 每个顶点的总大小
+			0, // 偏移量
+		);
+		gl.enableVertexAttribArray(this.texCordAttribLocation!);
+		gl.vertexAttribPointer(
+			this.texCordAttribLocation!,
+			2, // 纹理坐标的元素数量
+			gl.FLOAT,
+			false,
+			4 * Float32Array.BYTES_PER_ELEMENT, // 每个顶点的总大小
+			2 * Float32Array.BYTES_PER_ELEMENT, // 偏移量
+		);
 
+		gl.uniform1i(this.u_imageLocation, 0);
+	}
+	applyEffect(): void {
+		const gl = this.gl;
+		// 使用正确的着色器程序
+		gl.useProgram(this.shaderProgram);
+		if (this.texture) {
+			gl.bindTexture(gl.TEXTURE_2D, this.texture!.handle);
+		}
+		this.applyBuffer();
+		this.applyVertexAttribute();
+		gl.activeTexture(gl.TEXTURE0);
+		gl.bindTexture(gl.TEXTURE_2D, this.texture!.handle);
+	}
 	render(time: number) {
 		const gl = this.gl;
 		this.delayRenderHandel = delayRender();
+		gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT | gl.STENCIL_BUFFER_BIT);
 		this.postDrawCleanUp();
 		gl.viewport(0, 0, this.width, this.height);
 		const timeUniformLocation = gl.getUniformLocation(
@@ -156,12 +202,50 @@ export abstract class BaseEffect {
 			);
 			return;
 		}
+		// 假设 imageWidth 和 imageHeight 是你的纹理图片的原始尺寸
+		const imageAspectRatio = this.texture.width! / this.texture.height!;
 
-		// 定义顶点数据
+		// WebGL 视口的尺寸
+		const viewportWidth = this.width;
+		const viewportHeight = this.height;
+		const viewportAspectRatio = viewportWidth / viewportHeight;
+
+		let scaleX, scaleY;
+		if (imageAspectRatio > viewportAspectRatio) {
+			// 图片比视口宽
+			scaleX = 1;
+			scaleY = viewportAspectRatio / imageAspectRatio;
+		} else {
+			// 图片比视口高
+			scaleX = imageAspectRatio / viewportAspectRatio;
+			scaleY = 1;
+		}
+
+		// 更新顶点坐标以反映新的比例
 		this.vertices = [
-			-1.0, -1.0, 0.0, 0.0, 1.0, -1.0, 1.0, 0.0, -1.0, 1.0, 0.0, 1.0, 1.0, 1.0,
-			1.0, 1.0,
+			-scaleX,
+			-scaleY,
+			0.0,
+			0.0,
+			scaleX,
+			-scaleY,
+			1.0,
+			0.0,
+			-scaleX,
+			scaleY,
+			0.0,
+			1.0,
+			scaleX,
+			scaleY,
+			1.0,
+			1.0,
 		];
+
+		// // 定义顶点数据
+		// this.vertices = [
+		// 	-1.0, -1.0, 0.0, 0.0, 1.0, -1.0, 1.0, 0.0, -1.0, 1.0, 0.0, 1.0, 1.0, 1.0,
+		// 	1.0, 1.0,
+		// ];
 
 		// 创建顶点缓冲
 		this.vertexBuffer = gl.createBuffer();
@@ -192,55 +276,8 @@ export abstract class BaseEffect {
 		this.u_imageLocation = gl.getUniformLocation(this.shaderProgram, 'u_image');
 		gl.activeTexture(gl.TEXTURE0);
 		gl.uniform1i(this.u_imageLocation, 0);
-
 		// 绘制场景
-		gl.clearColor(0, 0, 0, 1);
-		gl.clear(gl.COLOR_BUFFER_BIT);
-		gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
 		this.setDrawFn(this.render);
 		this.inited = true;
-	}
-
-	private applyBuffer() {
-		const gl = this.gl;
-		gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexBuffer);
-		gl.bufferData(
-			gl.ARRAY_BUFFER,
-			new Float32Array(this.vertices),
-			gl.STATIC_DRAW,
-		);
-	}
-	private applyVertexAttribute() {
-		const gl = this.gl;
-		gl.enableVertexAttribArray(this.positionAttribLocation!);
-		gl.vertexAttribPointer(
-			this.positionAttribLocation!,
-			2, // 每个顶点的元素数量
-			gl.FLOAT,
-			false,
-			4 * Float32Array.BYTES_PER_ELEMENT, // 每个顶点的总大小
-			0, // 偏移量
-		);
-		gl.enableVertexAttribArray(this.texCordAttribLocation!);
-		gl.vertexAttribPointer(
-			this.texCordAttribLocation!,
-			2, // 纹理坐标的元素数量
-			gl.FLOAT,
-			false,
-			4 * Float32Array.BYTES_PER_ELEMENT, // 每个顶点的总大小
-			2 * Float32Array.BYTES_PER_ELEMENT, // 偏移量
-		);
-		gl.activeTexture(gl.TEXTURE0);
-		gl.uniform1i(this.u_imageLocation, 0);
-	}
-	applyEffect(): void {
-		const gl = this.gl;
-		// 使用正确的着色器程序
-		gl.useProgram(this.shaderProgram);
-		if (this.texture) {
-			gl.bindTexture(gl.TEXTURE_2D, this.texture!.handle);
-		}
-		this.applyBuffer();
-		this.applyVertexAttribute();
 	}
 }

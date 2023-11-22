@@ -1,4 +1,4 @@
-import React, {useCallback, useEffect, useRef, useState} from 'react';
+import React, {useCallback, useRef, useState} from 'react';
 import {
 	continueRender,
 	delayRender,
@@ -7,84 +7,139 @@ import {
 } from 'remotion';
 import {BaseTransition} from './Transition/BaseTransition';
 import {useAsyncEffect, useMount} from 'ahooks';
-import {DigitalDistortion} from './Effect/DigitalDistortion';
-import image1 from './textImage/1.png';
-import image2 from './textImage/2.png';
 import {BaseEffect} from './Effect/BaseEffect';
-import {SoulOut} from './Effect/SoulOut';
 import {FPS} from './constants';
+import Effect from './Effect';
+const data = {
+	images: [
+		// 'https://content-test.fancybos.com/evhcbgdagfc.webp',
+		// 'https://content-test.fancybos.com/6o3ucz5qk7.webp',
+		// 'https://content-test.fancybos.com/mowh9qf33f.webp',
+		'https://content-test.fancybos.com/0qxsl9vemhhr.jpg',
+		'https://content-test.fancybos.com/e3lk31mvvh.jpg',
+		'https://content-test.fancybos.com/ovhmiyhkh2.jpg',
+		'https://content-test.fancybos.com/h8yu7zyp4br.jpg',
+		'https://content-test.fancybos.com/z57ynehdne.jpg',
+	],
+	effects: [
+		{name: 'soulOut', duration: 2 * FPS},
+		{name: 'digitalDistortion', duration: 2 * FPS},
+		{name: 'shake', duration: 2 * FPS},
+	],
+	transitions: [
+		{name: 'ColourDistance', duration: FPS},
+		{name: 'CrossZoom', duration: FPS},
+	],
+};
 
-export const GLTransitionsAndEffect: React.FC<{
-	name: string;
-	durationInFramesTotal: number;
-}> = ({name, durationInFramesTotal}) => {
-	const effectDurationInFrames = (durationInFramesTotal - FPS) / 2;
+const findEffectClass = (name: string) => {
+	const effect = Effect.find((item) => item.name === name)?.effect;
+	return effect || Effect.find((item) => item.name === 'soulOut')?.effect;
+};
+
+const findTransitionName = (index: number) => {
+	return data.transitions[index]?.name || 'CrossZoom';
+};
+
+export const GLTransitionsAndEffect = () => {
+	const handle = useRef<any>(null);
 	const canvasRef = useRef<HTMLCanvasElement>(null);
 	const frame = useCurrentFrame();
 	const {fps, width, height} = useVideoConfig();
-	const [transitionEvent, setTransitionEvent] = useState<BaseTransition | null>(
-		null,
-	);
 	const [isInitialized, setIsInitialized] = useState(false);
-	const [effectEvent, setEffectEvent] = useState<BaseEffect | null>(null);
-	const [effectEvent2, setEffectEvent2] = useState<BaseEffect | null>(null);
+	const [effectsEvents, setEffectsEvents] = useState<BaseEffect[]>([]);
+	const [transitionsEvents, setTransitionsEvents] = useState<BaseTransition[]>(
+		[],
+	);
+
 	const initialize = useCallback(async () => {
-		const gl = canvasRef?.current!.getContext('webgl');
-		const effect = new DigitalDistortion({
-			gl: gl!,
-			fps,
-			image: image1,
-			width,
-			height,
-		});
+		const gl = canvasRef.current?.getContext('webgl');
+		if (!gl) {
+			console.error('WebGL context not found');
+			return;
+		}
 
-		const transition = new BaseTransition({
-			gl: gl as WebGLRenderingContext,
-			width,
-			height,
-			fps,
-			transitionName: name,
-			images: [image1, image2],
-		});
+		const effectInstances = [];
+		const transitionInstances = [];
 
-		const effect2 = new SoulOut({
-			gl: gl!,
-			fps,
-			image: image2,
-			width,
-			height,
-		});
-		await effect.init();
-		await transition.init();
-		await effect2.init();
-		setEffectEvent(effect);
-		setTransitionEvent(transition);
-		setEffectEvent2(effect2);
+		for (let i = 0; i < data.images.length; i++) {
+			const effectClass = findEffectClass(data.effects[i]?.name);
+			const effectInstance = new effectClass!({
+				gl: gl,
+				fps,
+				image: data.images[i],
+				width,
+				height,
+			});
+			await effectInstance.init();
+			effectInstances.push(effectInstance);
+
+			if (i < data.images.length - 1) {
+				const transitionName = findTransitionName(i);
+				const transitionInstance = new BaseTransition({
+					gl: gl,
+					width,
+					height,
+					fps,
+					transitionName: transitionName,
+					images: [data.images[i], data.images[i + 1]],
+				});
+				await transitionInstance.init();
+				transitionInstances.push(transitionInstance);
+			}
+		}
+
+		setEffectsEvents(effectInstances);
+		setTransitionsEvents(transitionInstances);
 		setIsInitialized(true);
-	}, [fps, height, name, width]);
+	}, [fps, height, width]);
 
 	useMount(async () => {
+		handle.current = delayRender();
 		await initialize();
+		continueRender(handle.current);
 	});
+
 	const render = useCallback(async () => {
 		if (!isInitialized) {
-			return; // 如果还未初始化完成，不执行渲染
+			return;
 		}
-		if (frame <= effectDurationInFrames) {
-			console.log('Rendering effect:', frame);
-			effectEvent?.drawFn!(frame);
-		} else if (frame <= effectDurationInFrames + FPS) {
-			console.log('Rendering transition:', frame);
-			transitionEvent?.drawFn!(frame, effectDurationInFrames);
-		} else {
-			console.log('Rendering effect2:', frame);
-			effectEvent2?.drawFn!(frame);
+
+		let currentFrameCounter = 0;
+
+		for (let i = 0; i < data.images.length; i++) {
+			const effectDuration = data.effects[i]?.duration || 2 * FPS; // 默认特效时长
+			const transitionDuration =
+				i < data.images.length - 1 ? data.transitions[i]?.duration || FPS : 0; // 默认转场时长
+
+			if (
+				frame >= currentFrameCounter &&
+				frame < currentFrameCounter + effectDuration
+			) {
+				effectsEvents[i]?.drawFn!(frame - currentFrameCounter);
+			}
+
+			currentFrameCounter += effectDuration;
+
+			if (
+				i < transitionsEvents.length &&
+				frame >= currentFrameCounter &&
+				frame < currentFrameCounter + transitionDuration
+			) {
+				transitionsEvents[i]?.drawFn!(
+					frame - currentFrameCounter,
+					effectDuration,
+					transitionDuration,
+				);
+			}
+
+			currentFrameCounter += transitionDuration;
 		}
-	}, [frame, isInitialized, effectDurationInFrames]);
+	}, [frame, isInitialized, effectsEvents, transitionsEvents]);
 
 	useAsyncEffect(async () => {
 		await render();
-	}, [fps, frame, transitionEvent]);
+	}, [frame]);
 
 	return (
 		<>
@@ -92,3 +147,5 @@ export const GLTransitionsAndEffect: React.FC<{
 		</>
 	);
 };
+
+export default GLTransitionsAndEffect;

@@ -17,13 +17,13 @@ export const RemotionVideo: React.FC = () => {
 			<Composition
 				id="GLTransitionsAndEffect"
 				component={GLTransitionsAndEffect}
-				durationInFrames={4 * 18 + 36 + 4 * 18}
+				durationInFrames={8 * 30}
 				fps={FPS}
 				width={WIDTH}
 				height={HEIGHT}
 				defaultProps={{
-					name: 'BowTieHorizontal',
-					durationInFramesTotal: 4 * 18 + 36 + 4 * 18,
+					name: 'ColourDistance',
+					durationInFramesTotal: DURATION_IN_FRAMES,
 				}}
 			/>
 			{effects.map((item: {name: any}, index: any) => {
@@ -46,7 +46,6 @@ export const RemotionVideo: React.FC = () => {
 			})}
 			<div>
 				{transitions.map((item: {name: any}, index: any) => {
-					//将item.name中的_，变成驼峰命名
 					item.name = letterToUpperCase(item.name);
 					return (
 						<Composition

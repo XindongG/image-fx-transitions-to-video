@@ -2,7 +2,6 @@ import {continueRender, delayRender} from 'remotion';
 import createTransition from 'gl-transition';
 import transitions from 'gl-transitions';
 import {Texture} from '../Texture';
-import {FPS} from '../constants';
 
 export class BaseTransition {
 	protected readonly gl: WebGLRenderingContext; //gl实例
@@ -16,12 +15,15 @@ export class BaseTransition {
 	protected delayRenderHandel: number | undefined; //延迟渲染句柄
 	protected vertexBuffer?: WebGLBuffer | null;
 	protected vertices: number[] = [];
-	private transition: any;
-	private shaderProgram?: WebGLProgram;
+	public transition: any;
 	protected positionAttribLocation?: number;
 	public inited = false;
 	public drawFn:
-		| ((frame: number, effectDurationInFrames: number) => void)
+		| ((
+				frame: number,
+				effectDurationInFrames: number,
+				transitionDuration: number,
+		  ) => void)
 		| undefined; //绘制函数
 	constructor(params: {
 		gl: WebGLRenderingContext;
@@ -65,7 +67,7 @@ export class BaseTransition {
 		gl.disableVertexAttribArray(this.positionAttribLocation!);
 		gl.disableVertexAttribArray(0);
 		gl.bindTexture(gl.TEXTURE_2D, null);
-		gl.useProgram(null); // 可能还需要禁用当前的着色器程序
+		gl.useProgram(null);
 		gl.bindBuffer(gl.ARRAY_BUFFER, null);
 		gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null);
 		gl.bindFramebuffer(gl.FRAMEBUFFER, null);
@@ -82,15 +84,10 @@ export class BaseTransition {
 		this.textureTo = await texture.loadTexture(this.images[1]);
 
 		gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+
 		this.vertices = [-1, -1, -1, 4, 4, -1];
 		this.vertexBuffer = gl.createBuffer();
 		this.applyBuffer();
-		this.shaderProgram = gl.createProgram() as WebGLProgram;
-		gl.linkProgram(this.shaderProgram);
-		this.positionAttribLocation = gl.getAttribLocation(
-			this.shaderProgram,
-			'Position',
-		);
 		this.applyVertexAttribute();
 		gl.viewport(0, 0, this.width, this.height);
 
@@ -98,19 +95,33 @@ export class BaseTransition {
 			gl,
 			transitions.find((t: {name: string}) => t.name === this.transitionName),
 		);
-		this.drawFn = (frame: number, effectDurationInFrames: number) => {
-			const progress = (frame - effectDurationInFrames) / FPS;
+		this.drawFn = (
+			frame: number,
+			effectDurationInFrames: number,
+			transitionDuration: number,
+		) => {
+			const relativeFrame = effectDurationInFrames - frame;
+			let progress = Math.abs(
+				relativeFrame / transitionDuration -
+					effectDurationInFrames / transitionDuration,
+			);
+			console.log(
+				frame,
+				effectDurationInFrames,
+				transitionDuration,
+				progress,
+				'======',
+			);
 			this.delayRenderHandel = delayRender();
 			this.postDrawCleanUp();
 			gl.viewport(0, 0, this.width, this.height);
-			gl.useProgram(this.shaderProgram!);
 			this.applyBuffer();
 			this.applyVertexAttribute();
 			continueRender(this.delayRenderHandel);
 
 			if (this.textureFrom && this.textureTo) {
 				this.transition?.draw(
-					progress,
+					effectDurationInFrames ? progress : (frame / this.fps) % 1,
 					this.textureFrom,
 					this.textureTo,
 					this.width,
@@ -123,6 +134,7 @@ export class BaseTransition {
 			}
 			this.postDrawCleanUp();
 		};
+
 		this.inited = true;
 	}
 }

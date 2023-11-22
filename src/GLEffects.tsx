@@ -2,7 +2,7 @@ import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import effects from './Effect';
 import {useCurrentFrame, useVideoConfig} from 'remotion';
 import {useMount} from 'ahooks';
-import image1 from './textImage/1.png';
+import image1 from './textImage/1.webp';
 import {Texture} from './Texture';
 const GLEffects: React.FC<{
 	name: string;

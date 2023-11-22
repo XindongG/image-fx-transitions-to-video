@@ -2,7 +2,7 @@ import React, {useCallback, useEffect, useState} from 'react';
 import {useCurrentFrame, useVideoConfig} from 'remotion';
 import {BaseTransition} from './Transition/BaseTransition';
 import {useMount} from 'ahooks';
-import image1 from './textImage/1.png';
+import image1 from './textImage/1.webp';
 import image2 from './textImage/2.png';
 
 const canvas = React.createRef<HTMLCanvasElement>();

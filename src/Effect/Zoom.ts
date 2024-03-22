@@ -25,8 +25,8 @@ export class Zoom extends BaseEffect {
 			
 			void main (void) {
 			   
-				//一次缩放效果时长 0.6
-				float duration = 0.6;
+				//一次缩放效果时长 1.0
+				float duration = 1.0;
 				//最大缩放幅度
 				float maxAmplitude = 0.3;
 				

@@ -12,9 +12,6 @@ import {FPS} from './constants';
 import Effect from './Effect';
 const data = {
 	images: [
-		// 'https://content-test.fancybos.com/evhcbgdagfc.webp',
-		// 'https://content-test.fancybos.com/6o3ucz5qk7.webp',
-		// 'https://content-test.fancybos.com/mowh9qf33f.webp',
 		'https://content-test.fancybos.com/0qxsl9vemhhr.jpg',
 		'https://content-test.fancybos.com/e3lk31mvvh.jpg',
 		'https://content-test.fancybos.com/ovhmiyhkh2.jpg',
@@ -133,7 +130,6 @@ export const GLTransitionsAndEffect = () => {
 					transitionDuration,
 				);
 			}
-
 			currentFrameCounter += transitionDuration;
 		}
 	}, [frame, isInitialized, effectsEvents, transitionsEvents]);

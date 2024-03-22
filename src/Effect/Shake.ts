@@ -19,8 +19,8 @@ export class Shake extends BaseEffect {
 			
 			void main (void) {
 				
-				//一次抖动滤镜的时长 0.7
-				float duration = 0.7;
+				//一次抖动滤镜的时长 1.2
+				float duration = 1.2;
 				//放大图片上限
 				float maxScale = 1.1;
 				//颜色偏移步长

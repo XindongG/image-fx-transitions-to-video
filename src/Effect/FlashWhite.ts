@@ -21,8 +21,8 @@ export class FlashWhite extends BaseEffect {
 			
 			void main (void) {
 				
-				//一次闪白滤镜的时长 0.6
-				float duration = 0.6;
+				//一次闪白滤镜的时长 1.9
+				float duration = 1.9;
 				//表示时间周期[0.0,0.6]
 				float time = mod(Time, duration);
 				//白色颜色遮罩层

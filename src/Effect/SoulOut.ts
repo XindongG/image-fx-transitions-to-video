@@ -19,8 +19,8 @@ export class SoulOut extends BaseEffect {
 			
 			void main (void) {
 				
-				//一次灵魂出窍效果的时长 0.7
-				float duration = 0.7;
+				//一次灵魂出窍效果的时长 1.7
+				float duration = 1.7;
 				//透明度上限
 				float maxAlpha = 0.4;
 				//放大图片上限

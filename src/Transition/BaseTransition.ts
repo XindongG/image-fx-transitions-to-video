@@ -113,7 +113,6 @@ export class BaseTransition {
 			this.applyBuffer();
 			this.applyVertexAttribute();
 			continueRender(this.delayRenderHandel);
-
 			if (this.textureFrom && this.textureTo) {
 				this.transition?.draw(
 					effectDurationInFrames ? progress : (frame / this.fps) % 1,

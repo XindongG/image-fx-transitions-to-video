@@ -1,8 +1,8 @@
-# Image FX Transitions to Video
+# Image FX Transitions to Video 🎬
 
 Image FX Transitions to Video 是一个前端项目，旨在为图片添加动态特效和转场效果，并将其导出为视频。该项目基于现代 Web 技术栈构建，利用 WebGL 和 GL Transition 实现高性能的图像处理，通过 Remotion 实现视频导出功能，适用于需要在 Web 环境中处理图像和视频特效的场景。可在此项目基础上进行各种魔改及二次封装
 
-## 技术栈
+## 技术栈 🛠️
 
 -   **WebGL:** 用于在浏览器中进行 3D 绘图和图像处理。
 -   **GL Transition:** 利用 WebGL 实现的图像转场效果库。
@@ -10,13 +10,13 @@ Image FX Transitions to Video 是一个前端项目，旨在为图片添加动�
 -   **React:** 用于构建用户界面的 JavaScript 库。
 -   **Node.js:** 服务器端的 JavaScript 运行环境。
 
-## 核心功能
+## 核心功能 💡
 
 -   **图片特效:** 支持多种图片特效，如缩放、闪白、抖动、灵魂出窍、数字失真等。
 -   **转场效果:** 提供流畅的转场效果，使图片切换更加自然。
 -   **视频导出:** 将添加特效和转场效果的图片序列导出为视频文件。
 
-## 快速开始
+## 快速开始 🚀
 
 1.  克隆仓库：
 
@@ -39,7 +39,7 @@ Image FX Transitions to Video 是一个前端项目，旨在为图片添加动�
  访问 `http://localhost:3000` 查看效果。
 
 
-## 技术实现
+## 技术实现 🛠️
 
 ### 图片特效
 
